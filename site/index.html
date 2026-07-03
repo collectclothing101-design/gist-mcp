@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GistMCP - Instant MCP Server for GitHub Gists</title>
+  <meta name="description" content="Turn any public GitHub Gist into an AI-ready MCP server instantly. Replace gist.github.com with gistmcp.io for instant AI context.">
+  <meta name="keywords" content="MCP, GitHub Gist, AI, Claude, Model Context Protocol, Code Tools">
+  <meta property="og:title" content="GistMCP - Instant MCP Server for GitHub Gists">
+  <meta property="og:description" content="Turn any public GitHub Gist into an AI-ready MCP server instantly.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-card-hover: #1a1a28;
+      --border: #1e1e30;
+      --border-glow: #6c5ce7;
+      --text: #e8e8f0;
+      --text-dim: #8888a0;
+      --accent: #6c5ce7;
+      --accent-light: #a29bfe;
+      --green: #00d2a0;
+      --gradient-1: linear-gradient(135deg, #6c5ce7, #00d2a0);
+      --gradient-2: linear-gradient(135deg, #0a0a0f 0%, #14142a 50%, #0a0a0f 100%);
+      --radius: 12px;
+      --radius-lg: 20px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--accent-light); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--green); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+    }
+    nav .container { display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .logo span { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a { color: var(--text-dim); font-size: 0.9rem; font-weight: 500; }
+    .nav-links a:hover { color: var(--text); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+      transition: all 0.2s; cursor: pointer; border: none;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-light); color: #fff; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent-light); }
+
+    /* Hero */
+    .hero {
+      padding: 160px 0 100px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(108,92,231,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 20px;
+      letter-spacing: -0.03em;
+    }
+    .hero h1 .gradient {
+      background: var(--gradient-1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      max-width: 580px;
+      margin: 0 auto 40px;
+    }
+
+    /* URL Transformer */
+    .transformer {
+      max-width: 750px;
+      margin: 0 auto 60px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      position: relative;
+    }
+    .transformer::before {
+      content: '';
+      position: absolute; inset: -1px;
+      border-radius: var(--radius-lg);
+      background: var(--gradient-1);
+      opacity: 0.15;
+      z-index: -1;
+      filter: blur(1px);
+    }
+    .transform-row {
+      display: flex; align-items: center; gap: 16px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .url-box {
+      flex: 1; min-width: 240px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      text-align: left;
+      transition: border-color 0.3s;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .url-box.source { color: var(--text-dim); }
+    .url-box.dest { color: var(--green); border-color: rgba(0,210,160,0.3); }
+    .url-box .highlight { color: var(--accent-light); font-weight: 600; }
+    .url-box .strike { text-decoration: line-through; color: #ff6b6b; opacity: 0.6; }
+    .arrow {
+      font-size: 1.5rem; color: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+    .try-section { margin-top: 24px; text-align: center; }
+    .try-input-wrap {
+      display: flex; gap: 8px; max-width: 600px; margin: 0 auto;
+    }
+    .try-input {
+      flex: 1; padding: 14px 18px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .try-input:focus { border-color: var(--accent); }
+    .try-input::placeholder { color: #555; }
+
+    /* Steps */
+    .steps { padding: 80px 0; }
+    .section-title {
+      text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 12px;
+    }
+    .section-sub {
+      text-align: center; color: var(--text-dim); margin-bottom: 50px; font-size: 1rem;
+    }
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .step-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(108,92,231,0.1);
+    }
+    .step-num {
+      width: 40px; height: 40px;
+      background: var(--gradient-1);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.1rem; color: #fff;
+      margin-bottom: 18px;
+    }
+    .step-card h3 { font-size: 1.15rem; margin-bottom: 10px; }
+    .step-card p { color: var(--text-dim); font-size: 0.95rem; }
+
+    /* Features */
+    .features { padding: 80px 0; }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      transition: all 0.3s;
+    }
+    .feature-card:hover {
+      border-color: rgba(108,92,231,0.4);
+      background: var(--bg-card-hover);
+    }
+    .feature-icon {
+      width: 48px; height: 48px;
+      background: rgba(108,92,231,0.1);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 16px;
+    }
+    .feature-card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .feature-card p { color: var(--text-dim); font-size: 0.9rem; }
+
+    /* Tools */
+    .tools { padding: 80px 0; }
+    .tools-grid {
+      display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+    }
+    .tool-badge {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 20px;
+      transition: all 0.2s;
+    }
+    .tool-badge:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .tool-badge img { width: 24px; height: 24px; border-radius: 4px; }
+    .tool-badge span { font-weight: 500; font-size: 0.9rem; }
+
+    /* Code Example */
+    .code-section { padding: 80px 0; }
+    .code-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .code-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 14px 20px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .code-dot.r { background: #ff5f57; }
+    .code-dot.y { background: #febc2e; }
+    .code-dot.g { background: #28c840; }
+    .code-header span { margin-left: 12px; color: var(--text-dim); font-size: 0.8rem; }
+    .code-body {
+      padding: 24px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+    .code-body .comment { color: #555; }
+    .code-body .key { color: var(--accent-light); }
+    .code-body .str { color: var(--green); }
+    .code-body .punc { color: var(--text-dim); }
+
+    /* CTA */
+    .cta {
+      padding: 100px 0;
+      text-align: center;
+    }
+    .cta-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 60px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-box::before {
+      content: '';
+      position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(108,92,231,0.1) 0%, transparent 70%);
+    }
+    .cta-box h2 { font-size: 2rem; margin-bottom: 16px; position: relative; }
+    .cta-box p { color: var(--text-dim); margin-bottom: 30px; position: relative; }
+    .cta-box .btn { position: relative; }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--text-dim); }
+    footer a:hover { color: var(--text); }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .transform-row { flex-direction: column; }
+      .arrow { transform: rotate(90deg); }
+      .nav-links { gap: 16px; }
+      .try-input-wrap { flex-direction: column; }
+      .hero { padding: 120px 0 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="logo">⚡ <span>GistMCP</span></div>
+    <div class="nav-links">
+      <a href="#how-it-works">How It Works</a>
+      <a href="#features">Features</a>
+      <a href="#setup">Setup</a>
+      <a href="https://github.com/collectclothing101-design/gist-mcp" class="btn btn-outline" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <h1>Any Gist becomes an<br><span class="gradient">MCP Server</span></h1>
+    <p>Replace <code>gist.github.com</code> with <code>gistmcp.io</code> and instantly give AI tools access to any public GitHub Gist.</p>
+
+    <div class="transformer">
+      <div class="transform-row">
+        <div class="url-box source">
+          <span class="strike">gist.github.com</span>/owner/<span class="highlight">aa5a315d</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="url-box dest">
+          <span class="highlight">gistmcp.io</span>/owner/<span class="highlight">aa5a315d</span>
+        </div>
+      </div>
+      <div class="try-section">
+        <div class="try-input-wrap">
+          <input type="text" class="try-input" id="gistUrl" placeholder="Paste a GitHub Gist URL..." value="">
+          <button class="btn btn-primary" onclick="convertUrl()">Convert</button>
+        </div>
+        <div id="result" style="margin-top: 14px; font-family: monospace; font-size: 0.85rem; color: var(--green); min-height: 20px;"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section class="steps" id="how-it-works">
+  <div class="container">
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-sub">Three steps to give your AI tools access to any public Gist</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Paste Your Gist URL</h3>
+        <p>Take any public GitHub Gist URL like <code>gist.github.com/owner/id</code></p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>Swap the Domain</h3>
+        <p>Replace <code>gist.github.com</code> with <code>gistmcp.io</code> — that's it.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Add to Your AI Tool</h3>
+        <p>Use the URL as an MCP server in Claude, Cursor, or any MCP-compatible tool.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+  <div class="container">
+    <h2 class="section-title">Why GistMCP?</h2>
+    <p class="section-sub">Purpose-built for Gists, not generic repos</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>Smart Reference Parsing</h3>
+        <p>Works with any format: bare IDs, full URLs, owner/id paths, or revision-specific SHAs.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📄</div>
+        <h3>Large File Handling</h3>
+        <p>Files over 1MB are automatically fetched via GitHub raw URLs. No truncation, no errors.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>Revision History</h3>
+        <p>Access full commit history and diffs for any Gist. Track changes over time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👥</div>
+        <h3>User Collections</h3>
+        <p>List all public Gists for any user. Browse and discover code snippets at scale.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Rate Limit Aware</h3>
+        <p>Built-in rate limit detection with clear recovery hints. Optional token support for 5,000 req/hr.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Zero Config</h3>
+        <p>No API keys required for public Gists. Just swap the URL and go.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Compatible Tools -->
+<section class="tools" id="tools">
+  <div class="container">
+    <h2 class="section-title">Works With Your Tools</h2>
+    <p class="section-sub">Compatible with all major MCP-capable AI assistants</p>
+    <div class="tools-grid">
+      <div class="tool-badge">
+        <img src="https://claude.ai/favicon.ico" alt="Claude">
+        <span>Claude</span>
+      </div>
+      <div class="tool-badge">
+        <img src="https://www.cursor.com/favicon.ico" alt="Cursor">
+        <span>Cursor</span>
+      </div>
+      <div class="tool-badge">
+        <img src="https://codeium.com/favicon.ico" alt="Windsurf">
+        <span>Windsurf</span>
+      </div>
+      <div class="tool-badge">
+        <img src="https://code.visualstudio.com/assets/favicon.ico" alt="VS Code">
+        <span>VS Code</span>
+      </div>
+      <div class="tool-badge">
+        <img src="https://cline.bot/assets/branding/favicons/favicon-256x256.png" alt="Cline">
+        <span>Cline</span>
+      </div>
+      <div class="tool-badge">
+        <img src="https://highlightai.com/favicon.ico" alt="Highlight AI">
+        <span>Highlight AI</span>
+      </div>
+      <div class="tool-badge">
+        <img src="https://cdn.prod.website-files.com/66d76c2202b335e39ad2b5e8/66f302d663108ca67c19ddbc_Favicon.png" alt="Augment Code">
+        <span>Augment Code</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Code Example -->
+<section class="code-section" id="setup">
+  <div class="container">
+    <h2 class="section-title">Quick Setup</h2>
+    <p class="section-sub">Add GistMCP to your Claude Desktop config</p>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dot r"></div>
+        <div class="code-dot y"></div>
+        <div class="code-dot g"></div>
+        <span>claude_desktop_config.json</span>
+      </div>
+      <div class="code-body">
+<span class="punc">{</span>
+  <span class="key">"mcpServers"</span><span class="punc">:</span> <span class="punc">{</span>
+    <span class="key">"gist"</span><span class="punc">:</span> <span class="punc">{</span>
+      <span class="key">"command"</span><span class="punc">:</span> <span class="str">"npx"</span><span class="punc">,</span>
+      <span class="key">"args"</span><span class="punc">:</span> <span class="punc">[</span><span class="str">"gist-mcp"</span><span class="punc">]</span>
+    <span class="punc">}</span>
+  <span class="punc">}</span>
+<span class="punc">}</span>
+      </div>
+    </div>
+    <p style="text-align:center; margin-top:20px; color: var(--text-dim); font-size: 0.9rem;">
+      Or use the remote URL directly in your MCP config:
+    </p>
+    <div class="code-block" style="margin-top:16px;">
+      <div class="code-header">
+        <div class="code-dot r"></div>
+        <div class="code-dot y"></div>
+        <div class="code-dot g"></div>
+        <span>Remote MCP URL</span>
+      </div>
+      <div class="code-body">
+<span class="comment"># Replace gist.github.com with gistmcp.io</span>
+<span class="str">https://gistmcp.io/owner/gist-id</span>
+
+<span class="comment"># Or with a specific file:</span>
+<span class="str">https://gistmcp.io/owner/gist-id/filename.js</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="container">
+    <div class="cta-box">
+      <h2>Ready to make your Gists AI-powered?</h2>
+      <p>No signup. No API keys. Just swap the domain.</p>
+      <a href="https://github.com/collectclothing101-design/gist-mcp" class="btn btn-primary" target="_blank" style="font-size:1rem; padding: 14px 32px;">
+        View on GitHub →
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2025 GistMCP. Built by <a href="https://github.com/collectclothing101-design" target="_blank">Collin Mark</a>. MIT License.</p>
+    <p style="margin-top:8px;">
+      <a href="https://github.com/collectclothing101-design/gist-mcp" target="_blank">GitHub</a> &middot;
+      <a href="https://modelcontextprotocol.io" target="_blank">MCP Protocol</a> &middot;
+      <a href="https://docs.github.com/en/rest/gists" target="_blank">GitHub Gist API</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+function convertUrl() {
+  const input = document.getElementById('gistUrl').value.trim();
+  const result = document.getElementById('result');
+  if (!input) { result.textContent = ''; return; }
+
+  let converted = input
+    .replace(/gist\.github\.com/gi, 'gistmcp.io')
+    .replace(/github\.com/gi, 'gistmcp.io');
+
+  if (converted === input && !input.includes('gistmcp.io')) {
+    result.innerHTML = '<span style="color:#ff6b6b">Could not detect a GitHub Gist URL. Expected: gist.github.com/owner/id</span>';
+    return;
+  }
+
+  result.innerHTML = '<span style="color:var(--green)">✓</span> ' + converted;
+}
+
+document.getElementById('gistUrl').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') convertUrl();
+});
+</script>
+
+</body>
+</html>
