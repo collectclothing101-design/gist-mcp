@@ -1,0 +1,42 @@
+{
+  "name": "gist-mcp",
+  "version": "1.0.0",
+  "description": "Convert any public GitHub Gist into an MCP server. Instantly fetch gist metadata, file contents, revision history, and user gist collections via AI-ready tools.",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "gist-mcp contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gist-mcp/gist-mcp"
+  },
+  "homepage": "https://github.com/gist-mcp/gist-mcp#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "github",
+    "gist",
+    "ai",
+    "claude",
+    "tool",
+    "api",
+    "rest"
+  ],
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "echo 'Tests not yet configured' && exit 0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.24.1"
+  },
+  "optionalDependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {}
+}
+
